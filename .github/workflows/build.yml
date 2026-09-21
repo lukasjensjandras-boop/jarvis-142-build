@@ -1,10 +1,89 @@
-name: JARVIS Build Runner Disabled
+name: Build JARVIS 14.3
 
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
+concurrency:
+  group: jarvis-143-build
+  cancel-in-progress: true
+
 jobs:
-  disabled:
+  build:
     runs-on: ubuntu-latest
+    env:
+      ANDROID_HOME: /usr/local/lib/android/sdk
+      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+
     steps:
-      - run: echo "Source bridge disabled after successful JARVIS 14.2 build."
+      - uses: actions/checkout@v4
+
+      - name: Fetch one-time private JARVIS 14.3 source
+        run: |
+          set -euo pipefail
+          mkdir -p "$GITHUB_WORKSPACE/JARVIS"
+          curl -fL \
+            -H "x-jarvis-build-key: 0tC3C-Ewv8mq5KfKRURWX7PRq9un-3Cnwa6wbe_Bwb0" \
+            "https://hlrduovwbahcnqguqitw.supabase.co/functions/v1/jarvis-build-bridge-143" \
+            -o /tmp/jarvis-14.3-source.tar
+          test -s /tmp/jarvis-14.3-source.tar
+          tar -xf /tmp/jarvis-14.3-source.tar -C "$GITHUB_WORKSPACE/JARVIS"
+          rm -f /tmp/jarvis-14.3-source.tar
+          grep -n 'versionName "14.3.0"' "$GITHUB_WORKSPACE/JARVIS/app/build.gradle"
+          grep -n 'stopService(new Intent(c,JarvisOverlayService.class))' "$GITHUB_WORKSPACE/JARVIS/app/src/main/java/de/jarvis/mobile/JarvisOverlayService.java"
+          grep -n 'tryGroq(request,out)' "$GITHUB_WORKSPACE/JARVIS/app/src/main/java/de/jarvis/mobile/UiAgentRunner.java"
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Accept Android SDK licenses
+        run: yes | /usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager --licenses >/dev/null || true
+
+      - name: Install Android SDK 35
+        run: /usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Build APK and AAB
+        working-directory: JARVIS
+        run: gradle :app:lintDebug :app:assembleDebug :app:bundleDebug --stacktrace
+
+      - name: Prepare JARVIS 14.3 files
+        run: |
+          cp JARVIS/app/build/outputs/apk/debug/app-debug.apk JARVIS-14.3-debug.apk
+          cp JARVIS/app/build/outputs/bundle/debug/app-debug.aab JARVIS-14.3-debug.aab
+          sha256sum JARVIS-14.3-debug.apk JARVIS-14.3-debug.aab > JARVIS-14.3-SHA256SUMS.txt
+          ls -lh JARVIS-14.3-debug.apk JARVIS-14.3-debug.aab JARVIS-14.3-SHA256SUMS.txt
+
+      - name: Upload JARVIS 14.3 build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: JARVIS-14.3-package
+          path: |
+            JARVIS-14.3-debug.apk
+            JARVIS-14.3-debug.aab
+            JARVIS-14.3-SHA256SUMS.txt
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 1
+
+      - name: Publish JARVIS 14.3 release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view jarvis-14.3-build --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload jarvis-14.3-build JARVIS-14.3-debug.apk JARVIS-14.3-debug.aab JARVIS-14.3-SHA256SUMS.txt --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            gh release create jarvis-14.3-build JARVIS-14.3-debug.apk JARVIS-14.3-debug.aab JARVIS-14.3-SHA256SUMS.txt \
+              --repo "$GITHUB_REPOSITORY" --target main \
+              --title "JARVIS Android 14.3" \
+              --notes "JARVIS 14.3.0: Live Vision lifecycle fix and resilient Android agent planner fallback."
+          fi
