@@ -1,0 +1,72 @@
+name: Build JARVIS 14.2
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: jarvis-142-build
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      ANDROID_HOME: /usr/local/lib/android/sdk
+      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch private JARVIS source
+        run: |
+          set -euo pipefail
+          curl -fL --retry 3 --retry-delay 2             "https://hook.eu1.make.com/mf93c9h9r41ha71nvtf6dnkccr8x3mf3"             -o /tmp/jarvis-source.zip
+          test -s /tmp/jarvis-source.zip
+          mkdir -p /tmp/jarvis-unzip
+          unzip -q /tmp/jarvis-source.zip -d /tmp/jarvis-unzip
+          SRC_DIR="$(find /tmp/jarvis-unzip -mindepth 1 -maxdepth 1 -type d | head -n 1)"
+          test -n "$SRC_DIR"
+          cp -a "$SRC_DIR" "$GITHUB_WORKSPACE/JARVIS"
+          echo "JARVIS source imported"
+          grep -n "versionName" "$GITHUB_WORKSPACE/JARVIS/app/build.gradle"
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Accept Android SDK licenses
+        run: yes | /usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager --licenses >/dev/null || true
+
+      - name: Install Android SDK 35
+        run: /usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Build APK and AAB
+        working-directory: JARVIS
+        run: gradle :app:lintDebug :app:assembleDebug :app:bundleDebug --stacktrace
+
+      - name: Prepare release files
+        run: |
+          cp JARVIS/app/build/outputs/apk/debug/app-debug.apk JARVIS-14.2-debug.apk
+          cp JARVIS/app/build/outputs/bundle/debug/app-debug.aab JARVIS-14.2-debug.aab
+          sha256sum JARVIS-14.2-debug.apk JARVIS-14.2-debug.aab > JARVIS-14.2-SHA256SUMS.txt
+          ls -lh JARVIS-14.2-debug.apk JARVIS-14.2-debug.aab JARVIS-14.2-SHA256SUMS.txt
+
+      - name: Publish build release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view jarvis-14.2-build --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload jarvis-14.2-build JARVIS-14.2-debug.apk JARVIS-14.2-debug.aab JARVIS-14.2-SHA256SUMS.txt --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            gh release create jarvis-14.2-build JARVIS-14.2-debug.apk JARVIS-14.2-debug.aab JARVIS-14.2-SHA256SUMS.txt               --repo "$GITHUB_REPOSITORY" --target main               --title "JARVIS Android 14.2"               --notes "Temporary public runner output for JARVIS 14.2.0. Debug APK/AAB."
+          fi
