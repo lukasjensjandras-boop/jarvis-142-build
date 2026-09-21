@@ -1,0 +1,38 @@
+name: Package JARVIS 14.2
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: jarvis-142-package
+  cancel-in-progress: true
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download finished JARVIS release
+        run: |
+          set -euo pipefail
+          base="https://github.com/lukasjensjandras-boop/jarvis-142-build/releases/download/jarvis-14.2-build"
+          curl -fL "$base/JARVIS-14.2-debug.apk" -o JARVIS-14.2-debug.apk
+          curl -fL "$base/JARVIS-14.2-debug.aab" -o JARVIS-14.2-debug.aab
+          curl -fL "$base/JARVIS-14.2-SHA256SUMS.txt" -o JARVIS-14.2-SHA256SUMS.txt
+          sha256sum -c JARVIS-14.2-SHA256SUMS.txt
+
+      - name: Upload JARVIS package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: JARVIS-14.2-package
+          path: |
+            JARVIS-14.2-debug.apk
+            JARVIS-14.2-debug.aab
+            JARVIS-14.2-SHA256SUMS.txt
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 1
