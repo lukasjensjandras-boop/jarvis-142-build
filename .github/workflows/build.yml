@@ -18,6 +18,10 @@ jobs:
     env:
       ANDROID_HOME: /usr/local/lib/android/sdk
       ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+      JARVIS_KEYSTORE_B64: ${{ secrets.JARVIS_KEYSTORE_B64 }}
+      JARVIS_STORE_PASSWORD: ${{ secrets.JARVIS_STORE_PASSWORD }}
+      JARVIS_KEY_ALIAS: ${{ secrets.JARVIS_KEY_ALIAS }}
+      JARVIS_KEY_PASSWORD: ${{ secrets.JARVIS_KEY_PASSWORD }}
 
     steps:
       - uses: actions/checkout@v4
@@ -65,24 +69,50 @@ jobs:
         with:
           gradle-version: '8.13'
 
+      - name: Prepare optional stable signing
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -n "${JARVIS_KEYSTORE_B64:-}" && -n "${JARVIS_STORE_PASSWORD:-}" && -n "${JARVIS_KEY_ALIAS:-}" && -n "${JARVIS_KEY_PASSWORD:-}" ]]; then
+            printf '%s' "$JARVIS_KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/jarvis-release.jks"
+            echo "JARVIS_KEYSTORE_FILE=$RUNNER_TEMP/jarvis-release.jks" >> "$GITHUB_ENV"
+            echo "JARVIS_STABLE_SIGNING=1" >> "$GITHUB_ENV"
+          else
+            echo "JARVIS_STABLE_SIGNING=0" >> "$GITHUB_ENV"
+          fi
+
       - name: Build APK and AAB
         working-directory: JARVIS
-        run: gradle :app:assembleDebug :app:bundleDebug --stacktrace
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${JARVIS_STABLE_SIGNING:-0}" == "1" ]]; then
+            gradle :app:assembleRelease :app:bundleRelease --stacktrace
+          else
+            gradle :app:assembleDebug :app:bundleDebug --stacktrace
+          fi
 
       - name: Prepare JARVIS 16 files
+        shell: bash
         run: |
-          cp JARVIS/app/build/outputs/apk/debug/app-debug.apk JARVIS-16.3-S26-Right-Hand-Plus-debug.apk
-          cp JARVIS/app/build/outputs/bundle/debug/app-debug.aab JARVIS-16.3-S26-Right-Hand-Plus-debug.aab
-          sha256sum JARVIS-16.3-S26-Right-Hand-Plus-debug.apk JARVIS-16.3-S26-Right-Hand-Plus-debug.aab > JARVIS-16.3-S26-Right-Hand-Plus-SHA256SUMS.txt
-          ls -lh JARVIS-16.3-S26-Right-Hand-Plus-debug.apk JARVIS-16.3-S26-Right-Hand-Plus-debug.aab JARVIS-16.3-S26-Right-Hand-Plus-SHA256SUMS.txt
+          set -euo pipefail
+          if [[ "${JARVIS_STABLE_SIGNING:-0}" == "1" ]]; then
+            cp JARVIS/app/build/outputs/apk/release/app-release.apk JARVIS-16.3-S26-Right-Hand-Plus.apk
+            cp JARVIS/app/build/outputs/bundle/release/app-release.aab JARVIS-16.3-S26-Right-Hand-Plus.aab
+          else
+            cp JARVIS/app/build/outputs/apk/debug/app-debug.apk JARVIS-16.3-S26-Right-Hand-Plus.apk
+            cp JARVIS/app/build/outputs/bundle/debug/app-debug.aab JARVIS-16.3-S26-Right-Hand-Plus.aab
+          fi
+          sha256sum JARVIS-16.3-S26-Right-Hand-Plus.apk JARVIS-16.3-S26-Right-Hand-Plus.aab > JARVIS-16.3-S26-Right-Hand-Plus-SHA256SUMS.txt
+          ls -lh JARVIS-16.3-S26-Right-Hand-Plus.apk JARVIS-16.3-S26-Right-Hand-Plus.aab JARVIS-16.3-S26-Right-Hand-Plus-SHA256SUMS.txt
 
       - name: Upload JARVIS 16 artifact
         uses: actions/upload-artifact@v4
         with:
           name: JARVIS-16.3-S26-Right-Hand-Plus-package
           path: |
-            JARVIS-16.3-S26-Right-Hand-Plus-debug.apk
-            JARVIS-16.3-S26-Right-Hand-Plus-debug.aab
+            JARVIS-16.3-S26-Right-Hand-Plus.apk
+            JARVIS-16.3-S26-Right-Hand-Plus.aab
             JARVIS-16.3-S26-Right-Hand-Plus-SHA256SUMS.txt
           if-no-files-found: error
           compression-level: 0
@@ -93,7 +123,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           if gh release view jarvis-16-s26-build --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            gh release upload jarvis-16-s26-build JARVIS-16.3-S26-Right-Hand-Plus-debug.apk JARVIS-16.3-S26-Right-Hand-Plus-debug.aab JARVIS-16.3-S26-Right-Hand-Plus-SHA256SUMS.txt --repo "$GITHUB_REPOSITORY" --clobber
+            gh release upload jarvis-16-s26-build JARVIS-16.3-S26-Right-Hand-Plus.apk JARVIS-16.3-S26-Right-Hand-Plus.aab JARVIS-16.3-S26-Right-Hand-Plus-SHA256SUMS.txt --repo "$GITHUB_REPOSITORY" --clobber
           else
-            gh release create jarvis-16-s26-build JARVIS-16.3-S26-Right-Hand-Plus-debug.apk JARVIS-16.3-S26-Right-Hand-Plus-debug.aab JARVIS-16.3-S26-Right-Hand-Plus-SHA256SUMS.txt               --repo "$GITHUB_REPOSITORY" --target main               --title "JARVIS Android 16.3 S26 Right Hand Plus"               --notes "JARVIS 16.0.0 S26/Life OS debug APK and AAB."
+            gh release create jarvis-16-s26-build JARVIS-16.3-S26-Right-Hand-Plus.apk JARVIS-16.3-S26-Right-Hand-Plus.aab JARVIS-16.3-S26-Right-Hand-Plus-SHA256SUMS.txt               --repo "$GITHUB_REPOSITORY" --target main               --title "JARVIS Android 16.3 S26 Right Hand Plus"               --notes "JARVIS 16.0.0 S26/Life OS debug APK and AAB."
           fi
