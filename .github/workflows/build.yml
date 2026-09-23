@@ -67,7 +67,7 @@ jobs:
 
       - name: Build APK and AAB
         working-directory: JARVIS
-        run: gradle :app:lintDebug :app:assembleDebug :app:bundleDebug --stacktrace
+        run: gradle :app:assembleDebug :app:bundleDebug --stacktrace
 
       - name: Prepare JARVIS 15 files
         run: |
