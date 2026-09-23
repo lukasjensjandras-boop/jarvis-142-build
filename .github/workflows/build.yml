@@ -1,4 +1,4 @@
-name: Build JARVIS 16.1.1 S26 Clean
+name: Build JARVIS 16.2 S26 Right Hand
 
 on:
   push:
@@ -9,7 +9,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: jarvis-1611-s26-clean
+  group: jarvis-162-s26-right-hand
   cancel-in-progress: true
 
 jobs:
@@ -44,9 +44,9 @@ jobs:
                   p.write_bytes(base64.b64decode(item["data"]))
                   count += 1
           print("Imported files:", count)
-          assert count == 84, count
+          assert count == 87, count
           PY
-          grep -n 'versionName "16.1.1"' JARVIS/app/build.gradle
+          grep -n 'versionName "16.2.0"' JARVIS/app/build.gradle
           grep -n 'compileSdk 36' JARVIS/app/build.gradle
           grep -n 'targetSdk 36' JARVIS/app/build.gradle
 
@@ -71,19 +71,19 @@ jobs:
 
       - name: Prepare JARVIS 16 files
         run: |
-          cp JARVIS/app/build/outputs/apk/debug/app-debug.apk JARVIS-16.1.1-S26-Clean-debug.apk
-          cp JARVIS/app/build/outputs/bundle/debug/app-debug.aab JARVIS-16.1.1-S26-Clean-debug.aab
-          sha256sum JARVIS-16.1.1-S26-Clean-debug.apk JARVIS-16.1.1-S26-Clean-debug.aab > JARVIS-16.1.1-S26-Clean-SHA256SUMS.txt
-          ls -lh JARVIS-16.1.1-S26-Clean-debug.apk JARVIS-16.1.1-S26-Clean-debug.aab JARVIS-16.1.1-S26-Clean-SHA256SUMS.txt
+          cp JARVIS/app/build/outputs/apk/debug/app-debug.apk JARVIS-16.2-S26-Right-Hand-debug.apk
+          cp JARVIS/app/build/outputs/bundle/debug/app-debug.aab JARVIS-16.2-S26-Right-Hand-debug.aab
+          sha256sum JARVIS-16.2-S26-Right-Hand-debug.apk JARVIS-16.2-S26-Right-Hand-debug.aab > JARVIS-16.2-S26-Right-Hand-SHA256SUMS.txt
+          ls -lh JARVIS-16.2-S26-Right-Hand-debug.apk JARVIS-16.2-S26-Right-Hand-debug.aab JARVIS-16.2-S26-Right-Hand-SHA256SUMS.txt
 
       - name: Upload JARVIS 16 artifact
         uses: actions/upload-artifact@v4
         with:
-          name: JARVIS-16.1.1-S26-Clean-package
+          name: JARVIS-16.2-S26-Right-Hand-package
           path: |
-            JARVIS-16.1.1-S26-Clean-debug.apk
-            JARVIS-16.1.1-S26-Clean-debug.aab
-            JARVIS-16.1.1-S26-Clean-SHA256SUMS.txt
+            JARVIS-16.2-S26-Right-Hand-debug.apk
+            JARVIS-16.2-S26-Right-Hand-debug.aab
+            JARVIS-16.2-S26-Right-Hand-SHA256SUMS.txt
           if-no-files-found: error
           compression-level: 0
           retention-days: 1
@@ -93,7 +93,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           if gh release view jarvis-16-s26-build --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            gh release upload jarvis-16-s26-build JARVIS-16.1.1-S26-Clean-debug.apk JARVIS-16.1.1-S26-Clean-debug.aab JARVIS-16.1.1-S26-Clean-SHA256SUMS.txt --repo "$GITHUB_REPOSITORY" --clobber
+            gh release upload jarvis-16-s26-build JARVIS-16.2-S26-Right-Hand-debug.apk JARVIS-16.2-S26-Right-Hand-debug.aab JARVIS-16.2-S26-Right-Hand-SHA256SUMS.txt --repo "$GITHUB_REPOSITORY" --clobber
           else
-            gh release create jarvis-16-s26-build JARVIS-16.1.1-S26-Clean-debug.apk JARVIS-16.1.1-S26-Clean-debug.aab JARVIS-16.1.1-S26-Clean-SHA256SUMS.txt               --repo "$GITHUB_REPOSITORY" --target main               --title "JARVIS Android 16.1.1 S26 Clean AI"               --notes "JARVIS 16.0.0 S26/Life OS debug APK and AAB."
+            gh release create jarvis-16-s26-build JARVIS-16.2-S26-Right-Hand-debug.apk JARVIS-16.2-S26-Right-Hand-debug.aab JARVIS-16.2-S26-Right-Hand-SHA256SUMS.txt               --repo "$GITHUB_REPOSITORY" --target main               --title "JARVIS Android 16.2 S26 Right Hand"               --notes "JARVIS 16.0.0 S26/Life OS debug APK and AAB."
           fi
