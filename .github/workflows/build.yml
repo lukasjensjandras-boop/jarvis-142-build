@@ -46,53 +46,9 @@ jobs:
           print("Imported files:", count)
           assert count == 78, count
           PY
-          grep -n 'versionName "15.0.0"' JARVIS/app/build.gradle
+          grep -n 'versionName "15.0.1"' JARVIS/app/build.gradle
           grep -n 'compileSdk 36' JARVIS/app/build.gradle
           grep -n 'targetSdk 36' JARVIS/app/build.gradle
-
-      - name: Apply S26 voice continuity fix
-        shell: bash
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-
-          # Version bump for the corrected S26 build.
-          gradle = Path("JARVIS/app/build.gradle")
-          g = gradle.read_text()
-          g = g.replace('versionCode 150', 'versionCode 151')
-          g = g.replace('versionName "15.0.0"', 'versionName "15.0.1"')
-          gradle.write_text(g)
-
-          # Prefer offline Android TTS voices when cloud speech falls back locally.
-          voice = Path("JARVIS/app/src/main/java/de/jarvis/mobile/CloudVoicePlayer.java")
-          v = voice.read_text()
-          old = '''                if(n.contains("premium")||n.contains("enhanced")||n.contains("neural")||n.contains("wavenet")||n.contains("natural"))score+=750;
-                if(n.contains("network"))score+=520;
-                if(n.contains("male")||n.contains("mann")||n.contains("männ")||n.contains("mascul"))score+=300;
-                if(n.contains("de-de-x-deb")||n.contains("de-de-x-deg"))score+=180;
-                if(n.contains("nfh")||n.contains("low"))score-=500;
-                if(!v.isNetworkConnectionRequired())score+=60;'''
-          new = '''                if(n.contains("premium")||n.contains("enhanced")||n.contains("neural")||n.contains("wavenet")||n.contains("natural"))score+=500;
-                if(n.contains("male")||n.contains("mann")||n.contains("männ")||n.contains("mascul"))score+=300;
-                if(n.contains("de-de-x-deb")||n.contains("de-de-x-deg"))score+=180;
-                if(n.contains("nfh")||n.contains("low"))score-=500;
-                // Reliability first on Samsung/Android 16: avoid voices that must stream while speaking.
-                if(v.isNetworkConnectionRequired()||n.contains("network"))score-=1200;
-                else score+=900;'''
-          if old not in v:
-              raise SystemExit("CloudVoicePlayer patch target missing")
-          voice.write_text(v.replace(old,new))
-
-          # Do not start cloud audio until the WebView believes the whole utterance can play through.
-          svc = Path("JARVIS/app/src/main/java/de/jarvis/mobile/PuterCloudService.java")
-          p = svc.read_text()
-          old = '''+"window.jarvisSpeak=async function(id,text){const myGen=++jarvisVoiceGen;try{if(!puter.auth.isSignedIn()){AndroidJarvis.ttsFail(id,'AUTH_REQUIRED');return;}if(jarvisAudio){try{jarvisAudio.pause();jarvisAudio.currentTime=0;}catch(e){}jarvisAudio=null;}const audio=await puter.ai.txt2speech(text,{provider:'xai',voice:'leo',language:'auto',output_format:'mp3'});if(myGen!==jarvisVoiceGen){AndroidJarvis.ttsFail(id,'CANCELLED');return;}jarvisAudio=audio;audio.onplay=()=>AndroidJarvis.ttsStart(id);audio.onended=()=>{if(myGen===jarvisVoiceGen){jarvisAudio=null;AndroidJarvis.ttsDone(id)}};audio.onerror=()=>{if(myGen===jarvisVoiceGen){jarvisAudio=null;AndroidJarvis.ttsFail(id,'TTS_PLAYBACK')}};await audio.play();}catch(e){if(myGen===jarvisVoiceGen)AndroidJarvis.ttsFail(id,(e&&e.message)?e.message:String(e));}};"'''
-          new = '''+"window.jarvisSpeak=async function(id,text){const myGen=++jarvisVoiceGen;try{if(!puter.auth.isSignedIn()){AndroidJarvis.ttsFail(id,'AUTH_REQUIRED');return;}if(jarvisAudio){try{jarvisAudio.pause();jarvisAudio.currentTime=0;}catch(e){}jarvisAudio=null;}const audio=await puter.ai.txt2speech(text,{provider:'xai',voice:'leo',language:'auto',output_format:'mp3'});if(myGen!==jarvisVoiceGen){AndroidJarvis.ttsFail(id,'CANCELLED');return;}jarvisAudio=audio;try{audio.preload='auto';}catch(e){};const buffered=await new Promise(resolve=>{if(audio.readyState>=4){resolve(true);return;}let done=false;const ok=()=>{if(done)return;done=true;resolve(true)};const bad=()=>{if(done)return;done=true;resolve(false)};try{audio.addEventListener('canplaythrough',ok,{once:true});audio.addEventListener('error',bad,{once:true});audio.load&&audio.load();}catch(e){}setTimeout(bad,6500)});if(myGen!==jarvisVoiceGen){AndroidJarvis.ttsFail(id,'CANCELLED');return;}if(!buffered){jarvisAudio=null;AndroidJarvis.ttsFail(id,'TTS_BUFFER_TIMEOUT');return;}audio.onplay=()=>AndroidJarvis.ttsStart(id);audio.onended=()=>{if(myGen===jarvisVoiceGen){jarvisAudio=null;AndroidJarvis.ttsDone(id)}};audio.onerror=()=>{if(myGen===jarvisVoiceGen){jarvisAudio=null;AndroidJarvis.ttsFail(id,'TTS_PLAYBACK')}};await audio.play();}catch(e){if(myGen===jarvisVoiceGen)AndroidJarvis.ttsFail(id,(e&&e.message)?e.message:String(e));}};"'''
-          if old not in p:
-              raise SystemExit("PuterCloudService patch target missing")
-          svc.write_text(p.replace(old,new))
-          PY
-          grep -n 'versionName "15.0.1"' JARVIS/app/build.gradle
 
       - uses: actions/setup-java@v4
         with:
