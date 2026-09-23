@@ -44,7 +44,7 @@ jobs:
                   p.write_bytes(base64.b64decode(item["data"]))
                   count += 1
           print("Imported files:", count)
-          assert count == 87, count
+          assert count == 88, count
           PY
           grep -n 'versionName "16.2.0"' JARVIS/app/build.gradle
           grep -n 'compileSdk 36' JARVIS/app/build.gradle
