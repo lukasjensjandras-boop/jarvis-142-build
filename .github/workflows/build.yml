@@ -1,4 +1,4 @@
-name: Build JARVIS 16.3 S26 Right Hand Plus
+name: Build JARVIS 16.4 S26 Right Hand
 
 on:
   push:
@@ -9,7 +9,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: jarvis-163-s26-right-hand-plus
+  group: jarvis-164-s26-right-hand
   cancel-in-progress: true
 
 jobs:
@@ -50,7 +50,8 @@ jobs:
           print("Imported files:", count)
           assert count == 89, count
           PY
-          grep -n 'versionName "16.3.0"' JARVIS/app/build.gradle
+          grep -n 'versionName "16.4.0"' JARVIS/app/build.gradle
+          grep -n 'versionCode 165' JARVIS/app/build.gradle
           grep -n 'compileSdk 36' JARVIS/app/build.gradle
           grep -n 'targetSdk 36' JARVIS/app/build.gradle
 
@@ -97,23 +98,23 @@ jobs:
         run: |
           set -euo pipefail
           if [[ "${JARVIS_STABLE_SIGNING:-0}" == "1" ]]; then
-            cp JARVIS/app/build/outputs/apk/release/app-release.apk JARVIS-16.3-S26-Right-Hand-Plus.apk
-            cp JARVIS/app/build/outputs/bundle/release/app-release.aab JARVIS-16.3-S26-Right-Hand-Plus.aab
+            cp JARVIS/app/build/outputs/apk/release/app-release.apk JARVIS-16.4.0-S26-Right-Hand.apk
+            cp JARVIS/app/build/outputs/bundle/release/app-release.aab JARVIS-16.4.0-S26-Right-Hand.aab
           else
-            cp JARVIS/app/build/outputs/apk/debug/app-debug.apk JARVIS-16.3-S26-Right-Hand-Plus.apk
-            cp JARVIS/app/build/outputs/bundle/debug/app-debug.aab JARVIS-16.3-S26-Right-Hand-Plus.aab
+            cp JARVIS/app/build/outputs/apk/debug/app-debug.apk JARVIS-16.4.0-S26-Right-Hand.apk
+            cp JARVIS/app/build/outputs/bundle/debug/app-debug.aab JARVIS-16.4.0-S26-Right-Hand.aab
           fi
-          sha256sum JARVIS-16.3-S26-Right-Hand-Plus.apk JARVIS-16.3-S26-Right-Hand-Plus.aab > JARVIS-16.3-S26-Right-Hand-Plus-SHA256SUMS.txt
-          ls -lh JARVIS-16.3-S26-Right-Hand-Plus.apk JARVIS-16.3-S26-Right-Hand-Plus.aab JARVIS-16.3-S26-Right-Hand-Plus-SHA256SUMS.txt
+          sha256sum JARVIS-16.4.0-S26-Right-Hand.apk JARVIS-16.4.0-S26-Right-Hand.aab > JARVIS-16.4.0-S26-Right-Hand-SHA256SUMS.txt
+          ls -lh JARVIS-16.4.0-S26-Right-Hand.apk JARVIS-16.4.0-S26-Right-Hand.aab JARVIS-16.4.0-S26-Right-Hand-SHA256SUMS.txt
 
       - name: Upload JARVIS 16 artifact
         uses: actions/upload-artifact@v4
         with:
-          name: JARVIS-16.3-S26-Right-Hand-Plus-package
+          name: JARVIS-16.4.0-S26-Right-Hand-package
           path: |
-            JARVIS-16.3-S26-Right-Hand-Plus.apk
-            JARVIS-16.3-S26-Right-Hand-Plus.aab
-            JARVIS-16.3-S26-Right-Hand-Plus-SHA256SUMS.txt
+            JARVIS-16.4.0-S26-Right-Hand.apk
+            JARVIS-16.4.0-S26-Right-Hand.aab
+            JARVIS-16.4.0-S26-Right-Hand-SHA256SUMS.txt
           if-no-files-found: error
           compression-level: 0
           retention-days: 1
@@ -123,7 +124,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           if gh release view jarvis-16-s26-build --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            gh release upload jarvis-16-s26-build JARVIS-16.3-S26-Right-Hand-Plus.apk JARVIS-16.3-S26-Right-Hand-Plus.aab JARVIS-16.3-S26-Right-Hand-Plus-SHA256SUMS.txt --repo "$GITHUB_REPOSITORY" --clobber
+            gh release upload jarvis-16-s26-build JARVIS-16.4.0-S26-Right-Hand.apk JARVIS-16.4.0-S26-Right-Hand.aab JARVIS-16.4.0-S26-Right-Hand-SHA256SUMS.txt --repo "$GITHUB_REPOSITORY" --clobber
           else
-            gh release create jarvis-16-s26-build JARVIS-16.3-S26-Right-Hand-Plus.apk JARVIS-16.3-S26-Right-Hand-Plus.aab JARVIS-16.3-S26-Right-Hand-Plus-SHA256SUMS.txt               --repo "$GITHUB_REPOSITORY" --target main               --title "JARVIS Android 16.3 S26 Right Hand Plus"               --notes "JARVIS 16.0.0 S26/Life OS debug APK and AAB."
+            gh release create jarvis-16-s26-build JARVIS-16.4.0-S26-Right-Hand.apk JARVIS-16.4.0-S26-Right-Hand.aab JARVIS-16.4.0-S26-Right-Hand-SHA256SUMS.txt               --repo "$GITHUB_REPOSITORY" --target main               --title "JARVIS Android 16.4 S26 Right Hand"               --notes "JARVIS 16.4.0 S26 Right Hand: redesigned command-center UI, automatic installed-app access, direct WhatsApp contact messaging and confirmations only for high-impact actions."
           fi
